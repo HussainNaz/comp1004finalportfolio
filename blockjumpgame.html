@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+    border:2px solid black;
+    background-color: #ffff99; /* Yellow background */
+    display: none; /* Hide canvas initially */
+}
+button {
+    padding: 12px 24px;
+    margin: 10px;
+    font-size: 18px;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+button:hover {
+    background-color: #45a049;
+}
+#menu {
+    text-align: center;
+    margin-top: 100px;
+}
+#instructions {
+    display: none;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f8f8f8;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+h1 {
+    color: #333;
+}
+</style>
+</head>
+<body>
+<!-- Menu Screen -->
+<div id="menu">
+    <h1>Block Hopper</h1>
+    <button onclick="startGame()">Play Game</button><br>
+    <button onclick="showInstructions()">Instructions</button><br>
+    <button onclick="quitGame()">Quit Game</button>
+</div>
+
+<!-- Instructions Screen -->
+<div id="instructions">
+    <h2>How to Play</h2>
+    <p><strong>Objective:</strong> Jump over the blue blocks to score points!</p>
+    <p><strong>Controls:</strong> Press SPACEBAR to jump</p>
+    <p><strong>Game Over:</strong> You lose if you hit a block</p>
+    <p><strong>Features:</strong> You can save and load your game progress</p>
+    <button onclick="hideInstructions()">Back to Menu</button>
+</div>
+
+<!-- Game Canvas (hidden initially) -->
+<canvas id="gameCanvas"></canvas>
+<br>
+
+<script>
+// Game variables
+var canvasWidth = 600;
+var canvasHeight = 400;
+var player;
+var playerYPosition = 200;
+var fallSpeed = 0;
+var interval;
+var isJumping = false;
+var jumpSpeed = 1;
+var block;
+var score = 0;
+var scoreLabel;
+var gameStartTime;
+var playTime = 0; // Total play time in seconds
+var timerInterval;
+
+// Menu functions
+function showInstructions() {
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('instructions').style.display = 'block';
+}
+
+function hideInstructions() {
+    document.getElementById('menu').style.display = 'block';
+    document.getElementById('instructions').style.display = 'none';
+}
+
+function quitGame() {
+    if (confirm("Are you sure you want to quit?")) {
+        window.close();
+        // Note: window.close() only works for windows opened by JavaScript
+        // In most browsers, it will just show a message that the window can't be closed
+    }
+}
+
+// Game functions
+function startGame() {
+    // Hide menu and show canvas
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('instructions').style.display = 'none';
+    document.getElementById('gameCanvas').style.display = 'block';
+    
+    // Initialize game
+    gameCanvas.start();
+    player = new createPlayer(30, 30, 10);
+    block = new createBlock();
+    scoreLabel = new createScoreLabel(10, 30);
+    interval = setInterval(updateCanvas, 20);
+    
+    // Start timer
+    gameStartTime = new Date();
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+function updateTimer() {
+    var currentTime = new Date();
+    playTime = Math.floor((currentTime - gameStartTime) / 1000); // in seconds
+}
+
+var gameCanvas = {
+    canvas: document.getElementById("gameCanvas"),
+    start: function() {
+        this.canvas.width = canvasWidth;
+        this.canvas.height = canvasHeight;
+        this.context = this.canvas.getContext("2d");
+    },
+    stop: function() {
+        clearInterval(interval);
+        clearInterval(timerInterval);
+        saveGameData();
+        alert("Game Over! Score: " + score + "\nPlay Time: " + formatTime(playTime) + "\nJSON data downloaded.");
+        // Return to menu after game over
+        setTimeout(returnToMenu, 1000);
+    },
+    reset: function() {
+        clearInterval(interval);
+        clearInterval(timerInterval);
+        startGame();
+    }
+}
+
+function formatTime(seconds) {
+    var minutes = Math.floor(seconds / 60);
+    var remainingSeconds = seconds % 60;
+    return minutes + "m " + remainingSeconds + "s";
+}
+
+function returnToMenu() {
+    // Hide canvas and show menu
+    document.getElementById('gameCanvas').style.display = 'none';
+    document.getElementById('menu').style.display = 'block';
+    // Reset game state
+    score = 0;
+    playTime = 0;
+}
+
+function createPlayer(width, height, x) {
+    this.width = width;
+    this.height = height;
+    this.x = x;
+    this.y = playerYPosition;
+    
+    this.draw = function() {
+        ctx = gameCanvas.context;
+        ctx.fillStyle = "green";
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+    this.makeFall = function() {
+        if (!isJumping) {
+            this.y += fallSpeed;
+            fallSpeed += 0.1;
+            this.stopPlayer();
+        }
+    }
+    this.stopPlayer = function() {
+        var ground = canvasHeight - this.height;
+        if (this.y > ground) {
+            this.y = ground;
+        }
+    }
+    this.jump = function() {
+        if (isJumping) {
+            this.y -= jumpSpeed;
+            jumpSpeed += 0.3;
+        }
+    }
+}
+
+function createBlock() {
+    // Adjusted minimum height to ensure visibility
+    var width = randomNumber(30, 45);  // Increased minimum width
+    var height = randomNumber(50, 200); // Increased minimum height
+    var speed = randomNumber(2, 6);
+    
+    this.x = canvasWidth;
+    this.y = canvasHeight - height;
+    this.width = width;
+    this.height = height;
+    this.speed = speed;
+    
+    this.draw = function() {
+        ctx = gameCanvas.context;
+        ctx.fillStyle = "blue";
+        // Added border to improve visibility
+        ctx.fillRect(this.x, this.y, width, height);
+        ctx.strokeStyle = "darkblue";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x, this.y, width, height);
+    }
+    
+    this.attackPlayer = function() {
+        this.x -= speed;
+        this.returnToAttackPosition();
+    }
+    
+    this.returnToAttackPosition = function() {
+        if (this.x < -this.width) {  // Wait until fully off-screen
+            this.width = randomNumber(30, 60);
+            this.height = randomNumber(50, 200);
+            this.speed = randomNumber(3, 6);
+            this.y = canvasHeight - this.height;
+            this.x = canvasWidth;
+            score++;
+        }
+    }
+}
+
+function detectCollision() {
+    var playerLeft = player.x
+    var playerRight = player.x + player.width;
+    var blockLeft = block.x;
+    var blockRight = block.x + block.width;
+    
+    var playerBottom = player.y + player.height;
+    var blockTop = block.y;
+    
+    if (playerRight > blockLeft && 
+        playerLeft < blockLeft && 
+        playerBottom > blockTop) {
+        
+        gameCanvas.stop();
+    }
+}
+
+function createScoreLabel(x, y) {
+    this.score = 0;  
+    this.x = x;
+    this.y = y;
+    this.draw = function() {
+        ctx = gameCanvas.context;
+        ctx.font = "25px Marker Felt";
+        ctx.fillStyle = "black";
+        ctx.fillText(this.text, this.x, this.y);
+    }
+}
+
+function updateCanvas() {
+    detectCollision();
+    
+    ctx = gameCanvas.context;
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    
+    player.makeFall();
+    player.draw();
+    player.jump();
+    
+    block.draw();
+    block.attackPlayer();
+    
+    // Update score and time display
+    scoreLabel.text = "SCORE: " + score + " | TIME: " + formatTime(playTime);
+    scoreLabel.draw();
+}
+
+function randomNumber(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
+function resetJump() {
+    jumpSpeed = 0;
+    isJumping = false;
+}
+
+function saveGameData() {
+    const gameData = {
+        timestamp: new Date().toISOString(),
+        score: score,
+        playTimeSeconds: playTime,
+        playTimeFormatted: formatTime(playTime),
+        player: {
+            x: player.x,
+            y: player.y,
+            width: player.width,
+            height: player.height
+        },
+        block: {
+            x: block.x,
+            y: block.y,
+            width: block.width,
+            height: block.height,
+            speed: block.speed
+        }
+    };
+
+    const blob = new Blob([JSON.stringify(gameData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `block_hopper_score_${score}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+document.body.onkeyup = function(e) {
+    if (e.keyCode == 32) {
+        isJumping = true;
+        setTimeout(function() { resetJump(); }, 1000);
+    }
+}
+
+// Initialize with menu visible
+document.getElementById('gameCanvas').style.display = 'none';
+</script>
+</body>
+</html>
