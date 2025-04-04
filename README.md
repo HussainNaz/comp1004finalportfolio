@@ -19,3 +19,5 @@ next is a timer, this shows how long you have been in your run for. all of the i
 look at.
 lastly is the menu page, here there are 3 options 1- play game/ 2- instructions/ 3-quit game
 
+enjoy the game :)
+H.N
